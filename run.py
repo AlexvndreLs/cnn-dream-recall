@@ -20,14 +20,18 @@ from stats import evaluate
 
 
 def run(h5_path, device="cpu", epochs=100, batch_size=64, lr=5e-5,
-        model_name="dreamcnn", seed=config.SEED, faithful=False):
+        model_name="dreamcnn", seed=config.SEED, faithful=False,
+        max_folds=None):
     torch.manual_seed(seed)
     np.random.seed(seed)
     data, subj, label = load_h5(h5_path)
     n_times, n_chans = data.shape[1], data.shape[2]
 
     all_probs, all_y, all_subj = [], [], []
-    for fold in nested_splits(subj, label, seed):
+    folds = list(nested_splits(subj, label, seed))
+    if max_folds:
+        folds = folds[:max_folds]
+    for fold in folds:
         mean, std = channel_stats(data, fold["train"])
 
         def ds(idx):
@@ -59,11 +63,13 @@ def main():
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--model", default="dreamcnn")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--max-folds", type=int, default=None,
+                    help="limite le nb de folds (test rapide)")
     ap.add_argument("--faithful", action="store_true",
                     help="reproduit Anirudh a l'identique (bugs inclus)")
     a = ap.parse_args()
     res = run(a.h5, a.device, a.epochs, a.batch_size, a.lr, a.model,
-              faithful=a.faithful)
+              faithful=a.faithful, max_folds=a.max_folds)
     print(json.dumps(res, indent=2))
     if a.out:
         with open(a.out, "w") as f:

@@ -44,27 +44,27 @@ def scorer_for(subj: int) -> str:
     return "jbe" if subj in config.PER_BLACKLIST else "per"
 
 
-def _base(root, branch, subj) -> Path:
+def _base(root, branch, subj, deriv="derivatives") -> Path:
     sub = f"sub-{subj:02d}"
-    return (Path(root) / "derivatives" / f"preprocessed-{branch}" / sub /
+    return (Path(root) / deriv / f"preprocessed-{branch}" / sub /
             "eeg" / f"{sub}_task-sleep_proc-clean")
 
 
-def vhdr_path(root, branch, subj) -> Path:
-    return _base(root, branch, subj).with_name(
-        _base(root, branch, subj).name + "_eeg.vhdr")
+def vhdr_path(root, branch, subj, deriv="derivatives") -> Path:
+    b = _base(root, branch, subj, deriv)
+    return b.with_name(b.name + "_eeg.vhdr")
 
 
-def events_path(root, branch, subj) -> Path:
-    return _base(root, branch, subj).with_name(
-        _base(root, branch, subj).name + "_events.tsv")
+def events_path(root, branch, subj, deriv="derivatives") -> Path:
+    b = _base(root, branch, subj, deriv)
+    return b.with_name(b.name + "_events.tsv")
 
 
 def read_stage_events(path, scorer, stage):
     """Liste (onset_s, duration_s) des annotations du stade pour ce scorer."""
     want = {f"{scorer}/{d}" for d in STAGE_TO_ANNOT[stage]}
     out = []
-    with open(path) as f:
+    with open(path, encoding="utf-8-sig") as f:
         header = f.readline().rstrip("\n").split("\t")
         i_on, i_dur, i_tt = (header.index("onset"), header.index("duration"),
                              header.index("trial_type"))
@@ -75,13 +75,33 @@ def read_stage_events(path, scorer, stage):
     return out
 
 
+def merge_events(events, tol=1e-3):
+    """Fusionne les annotations contigues (ex: marqueurs 1s) en blocs continus.
+    Retourne une liste de (onset_s, duration_s) pour chaque bloc du stade."""
+    if not events:
+        return []
+    ev = sorted(events)
+    blocks = []
+    cur_start, cur_end = ev[0][0], ev[0][0] + ev[0][1]
+    for onset, dur in ev[1:]:
+        if onset <= cur_end + tol:                 # contigu (ou chevauchant)
+            cur_end = max(cur_end, onset + dur)
+        else:
+            blocks.append((cur_start, cur_end - cur_start))
+            cur_start, cur_end = onset, onset + dur
+    blocks.append((cur_start, cur_end - cur_start))
+    return blocks
+
+
 def slice_epochs(data, sf, events, win):
-    """Decoupe les fenetres 30s (sous-decoupe si annotation plus longue)."""
+    """Fusionne les annotations en blocs de stade puis decoupe en fenetres
+    fixes de `win` echantillons (30s), non chevauchantes. Les restes < win
+    en fin de bloc sont ignores."""
     segs = []
-    for onset, dur in events:
+    for onset, dur in merge_events(events):
         start = int(round(onset * sf))
-        d = int(round(dur * sf)) or win
-        for s in range(start, start + d - win + 1, win):
+        n = int(round(dur * sf))
+        for s in range(start, start + n - win + 1, win):
             seg = data[:, s:s + win]
             if seg.shape[1] == win:
                 segs.append(seg.T)
@@ -94,13 +114,13 @@ def _load_raw(path):
     return raw
 
 
-def load_subject_stage(root, branch, subj, stage):
+def load_subject_stage(root, branch, subj, stage, deriv="derivatives"):
     """(n_epochs, T, 19) pour un (sujet, stade). T = 30s * sfreq."""
-    raw = _load_raw(vhdr_path(root, branch, subj))
+    raw = _load_raw(vhdr_path(root, branch, subj, deriv))
     sf = raw.info["sfreq"]
     win = int(round(EPOCH_SEC * sf))
     data = raw.get_data()
-    ev = read_stage_events(events_path(root, branch, subj),
+    ev = read_stage_events(events_path(root, branch, subj, deriv),
                            scorer_for(subj), stage)
     segs = slice_epochs(data, sf, ev, win)
     if not segs:
@@ -108,9 +128,9 @@ def load_subject_stage(root, branch, subj, stage):
     return np.asarray(segs, dtype=np.float32)
 
 
-def make_subject_loader(root, branch="noica"):
+def make_subject_loader(root, branch="noica", deriv="derivatives"):
     def loader(subj, stage):
-        return load_subject_stage(root, branch, subj, stage)
+        return load_subject_stage(root, branch, subj, stage, deriv)
     return loader
 
 
