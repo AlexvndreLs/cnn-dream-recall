@@ -32,3 +32,6 @@ BANDS = {
 }
 
 SEED = 42
+
+# per_s19 corrompu (copie de s29) -> scorer jbe pour s19.
+PER_BLACKLIST = {19}
