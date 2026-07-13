@@ -1,7 +1,7 @@
 """Orchestrateur : charge un .h5 poole d'un stade, boucle les folds,
 agrege sujet-niveau et calcule la p-value par permutation.
 
-Ex : python -m cnn_dream.run --h5 data/all_S2.h5 --device cuda
+Ex : python run.py --h5 data/all_S2.h5 --device cuda
 """
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ import json
 import numpy as np
 import torch
 
-from . import config
-from .cv import nested_splits
-from .data import EEGSegments, channel_stats, load_h5
-from .engine import train_fold
-from .models import build_model
-from .stats import evaluate
+import config
+from cv import nested_splits
+from data import EEGSegments, channel_stats, load_h5
+from engine import train_fold
+from models import build_model
+from stats import evaluate
 
 
 def run(h5_path, device="cpu", epochs=100, batch_size=64, lr=5e-5,

@@ -1,0 +1,7 @@
+torch>=2.2
+numpy>=1.24
+scikit-learn>=1.3
+h5py>=3.8
+mne>=1.6
+# optionnel : baseline moderne
+# braindecode>=0.8
