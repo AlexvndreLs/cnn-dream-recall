@@ -14,6 +14,7 @@
 : "${BRANCH:=noica}"
 
 source /home/alouis/mne_env/bin/activate 2>/dev/null || module load python
+mkdir -p /scratch/alouis/cnn_data
 cd ~/scratch/cnn-dream-recall
 
 python build_h5.py \
@@ -21,5 +22,5 @@ python build_h5.py \
     --deriv derivatives_250hz_dl \
     --branch "$BRANCH" \
     --stage "$STAGE" \
-    --out "data/all_${STAGE}_${BRANCH}.h5" \
+    --out "/scratch/alouis/cnn_data/all_${STAGE}_${BRANCH}.h5" \
     --win 1250

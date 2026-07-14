@@ -14,6 +14,5 @@ source /home/alouis/mne_env/bin/activate
 cd ~/scratch/cnn-dream-recall
 
 # TEST : 3 epochs seulement, pour valider GPU + data avant le vrai run.
-python run.py --h5 data/all_S2_noica.h5 --device cuda \
+python run.py --h5 /scratch/alouis/cnn_data/all_S2_noica.h5 --device cuda \
     --epochs 3 --batch-size 128 --max-folds 1 --out res_S2_test.json
-
